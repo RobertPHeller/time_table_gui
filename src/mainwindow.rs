@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:42:03
-//  Last Modified : <251017.1632>
+//  Last Modified : <251017.2328>
 //
 //  Description	
 //
@@ -37,3 +37,26 @@
 // 
 //
 //////////////////////////////////////////////////////////////////////////////
+
+use tk::*;
+use tk::cmd::*;
+use std::ops::Deref;
+use crate::mainframe::*;
+use crate::scrollwindow::*;
+use crate::buttonbox::*;
+
+pub struct MainWindow<Inst: std::marker::Copy + 'static> {
+    hull: MainFrame<Inst>,
+}
+
+impl<Inst: std::marker::Copy> MainWindow<Inst> {
+}
+
+impl<Inst: std::marker::Copy + 'static> Deref for MainWindow<Inst> {
+    type Target = tk::Widget<Inst>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hull
+    }
+}
+

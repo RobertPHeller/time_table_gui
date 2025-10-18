@@ -7,8 +7,8 @@
 //  Date          : $Date$
 //  Author        : $Author$
 //  Created By    : Robert Heller
-//  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251017.2322>
+//  Created       : 2025-10-17 23:23:00
+//  Last Modified : <251017.2331>
 //
 //  Description	
 //
@@ -37,23 +37,24 @@
 // 
 //
 //////////////////////////////////////////////////////////////////////////////
-
-#![doc = include_str!("../README.md")]
-
-//use time_table::*;
 use tk::*;
-//use tk::cmd::*;
-pub mod mainwindow;
-pub mod ttmainwindow;
-pub mod mainframe;
-pub mod scrollwindow;
-pub mod buttonbox;
-//use crate::ttmainwindow::*;
+use tk::cmd::*;
+use std::ops::Deref;
+use crate::scrollwindow::*;
+use crate::buttonbox::*;
 
-
-fn main()  -> TkResult<()>  {
-    let tk = make_tk!()?;
-    let root = tk.root();
-    
-    Ok( main_loop() )
+pub struct MainFrame<Inst: std::marker::Copy + 'static> {
+    hull: TtkFrame<Inst>,
 }
+
+impl<Inst: std::marker::Copy> MainFrame<Inst> {
+}
+
+impl<Inst: std::marker::Copy + 'static> Deref for MainFrame<Inst> {
+    type Target = tk::Widget<Inst>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hull
+    }
+}
+

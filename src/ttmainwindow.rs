@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251017.2239>
+//  Last Modified : <251017.2325>
 //
 //  Description	
 //
@@ -44,7 +44,7 @@ use time_table::station::*;
 use time_table::train::*;
 use tk::*;
 use tk::cmd::*;
-//use crate::mainwindow::*;
+use crate::mainwindow::*;
 use std::collections::HashMap;
 use std::ops::Deref;
 
@@ -249,6 +249,34 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         Ok(())
     }
 }
+
+
+pub struct TimeTable<Inst: std::marker::Copy + 'static> {
+    FocusNowhere: TkCanvas<Inst>,
+    Main:         MainWindow<Inst>,
+    SysConfigFile: String,
+    MainWindow:   TkFrame<Inst>,
+    ChartDisplay: ChartDisplay<Inst>,
+}
+
+impl<Inst: std::marker::Copy> TimeTable<Inst> {
+}
+
+impl<Inst: std::marker::Copy + 'static> Deref for TimeTable<Inst> {
+    type Target = tk::Widget<Inst>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.Main
+    }
+}
+
+impl<Inst:TkInstance> TkPackSlave  for TimeTable<Inst> {}
+impl<Inst:TkInstance> TkGridSlave  for TimeTable<Inst> {}
+impl<Inst:TkInstance> TkPlaceSlave for TimeTable<Inst> {}
+
+
+
+
 
 
 #[cfg(test)]

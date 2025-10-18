@@ -7,8 +7,8 @@
 //  Date          : $Date$
 //  Author        : $Author$
 //  Created By    : Robert Heller
-//  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251017.2322>
+//  Created       : 2025-10-17 23:23:24
+//  Last Modified : <251017.2323>
 //
 //  Description	
 //
@@ -37,23 +37,3 @@
 // 
 //
 //////////////////////////////////////////////////////////////////////////////
-
-#![doc = include_str!("../README.md")]
-
-//use time_table::*;
-use tk::*;
-//use tk::cmd::*;
-pub mod mainwindow;
-pub mod ttmainwindow;
-pub mod mainframe;
-pub mod scrollwindow;
-pub mod buttonbox;
-//use crate::ttmainwindow::*;
-
-
-fn main()  -> TkResult<()>  {
-    let tk = make_tk!()?;
-    let root = tk.root();
-    
-    Ok( main_loop() )
-}
