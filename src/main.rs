@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251017.2322>
+//  Last Modified : <251018.0212>
 //
 //  Description	
 //
@@ -48,6 +48,7 @@ pub mod ttmainwindow;
 pub mod mainframe;
 pub mod scrollwindow;
 pub mod buttonbox;
+pub mod stdmenubar;
 //use crate::ttmainwindow::*;
 
 

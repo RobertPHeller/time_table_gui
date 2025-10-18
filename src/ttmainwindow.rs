@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251017.2325>
+//  Last Modified : <251017.2351>
 //
 //  Description	
 //
@@ -110,12 +110,13 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         //let cwidth = (numIncrs * 20) + this.labelsize as i32 + 20;
         let lab = this.hull.create_text (0.0,0.0, -anchor("nw") -text("T") )?;
         let tags = ( lab.clone(), );
-        let bbox = match this.hull.bbox(tags)? {
+        let bbox = match this.hull.bbox(tags.clone())? {
             None => TkRectangle{ left:0, right:0, top:0, bottom:0 },
             Some(bbox) => bbox,
         };
         //eprintln!("*** ChartDisplay::new(): bbox is {:?}",bbox);
         this.lheight = 1.5 * bbox.bottom as f64;
+        this.hull.delete(tags)?;
         Ok ( this )
     }
     pub fn deleteWholeChart(&mut self) {
