@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251017.2215>
+//  Last Modified : <251017.2239>
 //
 //  Description	
 //
@@ -38,8 +38,10 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-//use time_table::*;
+use time_table::*;
 use time_table::cab::*;
+use time_table::station::*;
+use time_table::train::*;
 use tk::*;
 use tk::cmd::*;
 //use crate::mainwindow::*;
@@ -192,9 +194,9 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
             self.bottomofcabs += self.lheight;
             cabyoff = self.lheight + (self.numberofcabs as f64 + 0.75);
         }
-        //self._updateChart()?;
-        //self._updateStorageTracks()?;
-        //self._updateCabs()?;
+        self._updateChart()?;
+        self._updateStorageTracks()?;
+        self._updateCabs()?;
         let cabName = cab.Name();
         let cabColor = cab.Color();
         let t2 = String::from("Cabs:Name:")+&cabName;
@@ -205,10 +207,45 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         let t2 = String::from("Cabs:Line:")+&cabName;
         self.hull.create_line(&[(self.labelsize as f64, cabyoff+self.topofcabs),
                                 (r,cabyoff+self.topofcabs)],
-   -tags( ("Cabs", t2)) -width(4) -fill(cabColor) -stipple("gray50") )?;
+          -tags( ("Cabs", t2)) -width(4) -fill(cabColor) -stipple("gray50") )?;
         Ok(())
     }
     fn _buildChart(&mut self) -> TkResult<()> {
+        Ok(())
+    }
+    fn _buildStorageTracks(&mut self) -> TkResult<()> {
+        Ok(())
+    }
+    pub fn addAStation(&mut self,station: &Station, sindex: usize) -> TkResult<()> {
+        Ok(())
+    }
+    pub fn addAStorageTrack(&mut self,station: &Station, track: &StorageTrack)
+         -> TkResult<()> { 
+        Ok(())
+    }
+    fn _formNameOnChart(&mut self,sn: &str,rn: &str) -> TkResult<()> {
+        Ok(())
+    }
+    pub fn addATrain(&mut self,timetable: &TimeTableSystem, train: &Train)
+        -> TkResult<()> {
+        Ok(())
+    }
+    fn mx2minutes(&self, mx: i32) -> TkResult<()> {
+        Ok(())
+    }
+    pub fn deleteTrain(&mut self, trainnumber: &str) -> TkResult<()> {
+        Ok(())
+    }
+    fn _updateChart(&mut self) -> TkResult<()> {
+        Ok(())
+    }
+    fn _updateStorageTracks(&mut self) -> TkResult<()> {
+        Ok(())
+    }
+    fn _updateCabs(&mut self) -> TkResult<()> {
+        Ok(())
+    }
+    pub fn buildWholeChart(&mut self, timetable: &TimeTableSystem) -> TkResult<()> {
         Ok(())
     }
 }
