@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 23:23:00
-//  Last Modified : <251018.1412>
+//  Last Modified : <251018.1619>
 //
 //  Description	
 //
@@ -39,7 +39,7 @@
 //////////////////////////////////////////////////////////////////////////////
 use tk::*;
 use tk::cmd::*;
-use tcl::*;
+//use tcl::*;
 
 use std::ops::Deref;
 use std::collections::HashMap;
@@ -391,12 +391,118 @@ impl<Inst: std::marker::Copy> MainFrame<Inst> {
             },
         }
     }
-    pub fn menu_entrycget(&mut self,menuid_: &str, index1: i32, option: &str)
+    #[cfg(false)]
+    pub fn menu_entrycget(&mut self,menuid_: &str, index1: i32, option: fn(Obj)->Opt)
                         -> TkResult<Option<Obj>> {
         match self.menuidmap.get(&menuid_.to_string()) {
             None => Ok(None),
             Some(menuwidget) => Ok(Some(menuwidget.entrycget(index1, 
                                     option)?)),
+        }
+    }
+    #[cfg(false)]
+    pub fn menu_entryconfigure(&mut self,menuid_: &str, index1: i32, options: impl Into<PathOptsWidgets<Opts,()>>) -> TkResult<Option<Obj>> {
+        match self.menuidmap.get(&menuid_.to_string()) {
+            None => Ok(None),
+            Some(menuwidget) => Ok(Some(menuwidget.entryconfigure(index1,options)?)),
+        }
+    }
+    pub fn menu_insert(&mut self, menuid_: &str, index: i32, entry: MenuType) -> TkResult<()> {
+        match self.menuidmap.get(&menuid_.to_string()) {
+            None => Ok(()),
+            Some(menuwidget) => {
+                let mut icount: i32 = 0;
+                let mut count: usize = 0;
+                loop {
+                    match menuwidget.index(icount)? {
+                        None => {break;},
+                        Some(i) => {
+                            count = icount as usize;
+                            icount += 1;
+                        }
+                    };
+                }                            
+                match entry {
+                    MenuType::Command(name,tags_,accel,next) => {
+                        let (lab, under) = Self::_parse_name(&name);
+                        let newmenuitem =
+                            if under.is_none() {
+                                menuwidget.insert_command(index, -label(lab) )?;
+                            } else {
+                                menuwidget.insert_command(index, -label(lab) -underline(under.unwrap()) )?;
+                        };
+                        for tag in tags_.split(' ') {
+                            let tags_element = self.tags.entry(tag.to_string()).or_insert(Vec::new());
+                            tags_element.push((*menuwidget,count));
+                            self.tagstate.entry(tag.to_string()).or_insert(true);
+                        }
+                    },
+                    MenuType::Cascade(name,tags_,accel,tear,ents,next) => {
+                        let (lab, under) = Self::_parse_name(&name);
+                        let newmenu = menuwidget.add_menu( -tearoff(tear))?;
+                        let newmenuitem = 
+                            if under.is_none() {
+                                menuwidget.insert_cascade(index, -label(lab) -menu(newmenu.path()))?;
+                            } else {
+                                menuwidget.insert_cascade(index, -label(lab) -underline(under.unwrap())  -menu(newmenu.path()))?;
+                        };
+                        for tag in tags_.split(' ') {
+                            let tags_element = self.tags.entry(tag.to_string()).or_insert(Vec::new());
+                            tags_element.push((*menuwidget,count));
+                            self.tagstate.entry(tag.to_string()).or_insert(true);
+                        }
+                        self._create_entries(newmenu,*ents)?;
+                    },
+                    MenuType::CheckButton(name,tags_,accel,next) => {
+                        let (lab, under) = Self::_parse_name(&name);
+                        let newmenuitem =
+                            if under.is_none() {
+                                menuwidget.insert_checkbutton(index, -label(lab) )?;
+                            } else {
+                                menuwidget.insert_checkbutton(index, -label(lab) -underline(under.unwrap()) )?;
+                        };
+                        for tag in tags_.split(' ') {
+                            let tags_element = self.tags.entry(tag.to_string()).or_insert(Vec::new());
+                            tags_element.push((*menuwidget,count));
+                            self.tagstate.entry(tag.to_string()).or_insert(true);
+                        }
+                    },
+                    MenuType::RadioButton(name,tags_,accel,next) => {
+                        let (lab, under) = Self::_parse_name(&name);
+                        let newmenuitem =
+                            if under.is_none() {
+                                menuwidget.insert_radiobutton(index, -label(lab) )?;
+                            } else {
+                                menuwidget.insert_radiobutton(index, -label(lab) -underline(under.unwrap()) )?;
+                        };
+                        for tag in tags_.split(' ') {
+                            let tags_element = self.tags.entry(tag.to_string()).or_insert(Vec::new());
+                            tags_element.push((*menuwidget,count));
+                            self.tagstate.entry(tag.to_string()).or_insert(true);
+                        }
+                    },
+                    MenuType::Separator(next) => {
+                        menuwidget.insert_separator(index, -columnbreak(1) )?;
+                    },
+                    _ => (),
+                };
+                Ok(())
+            },
+        }
+    }    
+    pub fn menu_invoke(&self,menuid_: &str, index: i32) -> TkResult<()> {
+        match self.menuidmap.get(&menuid_.to_string()) {
+            None => Ok(()),
+            Some(menuwidget) => {
+                menuwidget.invoke(index)?;
+                Ok(())
+            },
+        }
+    }
+    pub fn menu_type(&mut self, menuid_: &str, index: i32) -> TkResult<Option<TkMenuEntryType>> {
+        match self.menuidmap.get(&menuid_.to_string()) {
+            None => Ok(None),
+            Some(menuwidget) => Ok(menuwidget.type_(index)?),
         }
     }
 }
