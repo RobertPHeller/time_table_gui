@@ -1,0 +1,10 @@
+/target
+Cargo.lock
+*.tex
+*~
+*.log
+*.toc
+*.tex
+*.aux
+*.pdf
+

@@ -1,0 +1,16 @@
+[package]
+name = "time_table_gui"
+version = "0.1.0"
+edition = "2024"
+authors = ["Robert Heller <heller@deepsoft.com>"]
+license = "GPL-2.0-only"
+readme = "README.md"
+keywords = ["model-railway", "railroad", "model-railroad", "time-table"]
+categories = ["command-line-utilities"]
+repository = "https://github.com/RobertPHeller/time_table_gui"
+documentation = "https://docs.rs/time_table_gui"
+description = "Model Railroad Time Table generating program"
+
+[dependencies]
+tk = "0.1.10"
+time_table = "0.1.3"
