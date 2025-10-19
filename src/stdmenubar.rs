@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-18 02:12:18
-//  Last Modified : <251018.0624>
+//  Last Modified : <251019.1230>
 //
 //  Description	
 //
@@ -41,11 +41,17 @@ use std::boxed::*;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum MenuType {
+    //   name   tags   mid    tear  entries      next
     Menu(String,String,String,bool,Box<MenuType>,Box<MenuType>),
+    //      name   tags   accel   next
     Command(String,String,String,Box<MenuType>),
+    //      name   tags   accel  tear ents          next
     Cascade(String,String,String,bool,Box<MenuType>,Box<MenuType>),
+    //          name   tags   accel   next
     CheckButton(String,String,String,Box<MenuType>),
+    //          name   tags   accel  next
     RadioButton(String,String,String,Box<MenuType>),
+    //        next
     Separator(Box<MenuType>),
     Nil,
 }

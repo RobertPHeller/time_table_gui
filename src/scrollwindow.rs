@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 23:23:12
-//  Last Modified : <251017.2323>
+//  Last Modified : <251019.0843>
 //
 //  Description	
 //
@@ -37,3 +37,23 @@
 // 
 //
 //////////////////////////////////////////////////////////////////////////////
+use tk::*;
+use tk::cmd::*;
+use std::ops::Deref;
+
+pub struct ScrollWindow<Inst: std::marker::Copy + 'static> {
+    // Hull
+    hull: TtkFrame<Inst>,
+    // Components
+    hscroll: TkScrollbar<Inst>,
+    vscroll: TkScrollbar<Inst>,
+    // variables
+}
+
+impl<Inst: std::marker::Copy + 'static> Deref for ScrollWindow<Inst> {
+     type Target = TtkFrame<Inst>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hull
+    }
+}

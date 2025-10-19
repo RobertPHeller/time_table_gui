@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 23:23:24
-//  Last Modified : <251017.2323>
+//  Last Modified : <251019.1157>
 //
 //  Description	
 //
@@ -37,3 +37,23 @@
 // 
 //
 //////////////////////////////////////////////////////////////////////////////
+use tk::*;
+use tk::cmd::*;
+use std::ops::Deref;
+
+pub struct ButtonBox<Inst: std::marker::Copy + 'static> {
+    // Hull   
+    hull: TtkFrame<Inst>,  
+    // variables
+    //buttons: HashMap<String.tk::Widget<Inst>>,
+}
+
+impl<Inst: std::marker::Copy + 'static> Deref for ButtonBox<Inst> {
+     type Target = TtkFrame<Inst>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hull
+    }
+}
+
+
