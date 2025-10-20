@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:42:03
-//  Last Modified : <251019.2104>
+//  Last Modified : <251019.2237>
 //
 //  Description	
 //
@@ -191,6 +191,38 @@ impl<Inst: std::marker::Copy> MainWindow<Inst> {
             self.numtoolbars += 1;
         }
         Ok(())
+    }
+    pub fn toolbar_show (&self,name: &str) ->TkResult<()>
+    {
+        match self.toolbars.get(&name.to_string()) {
+            None => Ok(()),
+            Some((frame,index)) => self.hull.showtoolbar(*index,true),
+        }
+    }
+    pub fn toolbar_hide (&self,name: &str) ->TkResult<()>
+    {
+        match self.toolbars.get(&name.to_string()) {
+            None => Ok(()),
+            Some((frame,index)) => self.hull.showtoolbar(*index,false),
+        }
+    }
+    #[cfg(false)]
+    pub fn toolbar_setbuttonstate (&self,name: &str,stat_: StateType)  ->TkResult<()>
+    {
+        match self.toolbars.get(&name.to_string()) {
+            None => Ok(()),
+            Some((frame,index)) => {
+                for b in frame.winfo_children()?.iter() {
+                    let path = b.path();
+                    b.tk().eval((path,"configure","-state",
+                            match state_ {
+                                StateType::Disabled => "disabled",
+                                StateType::Normal   => "normal",
+                            }))?;
+                }
+                Ok(())
+            },
+        }
     }
 }
 
