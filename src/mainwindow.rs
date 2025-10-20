@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:42:03
-//  Last Modified : <251019.1739>
+//  Last Modified : <251019.2104>
 //
 //  Description	
 //
@@ -60,7 +60,7 @@ pub struct MainWindow<Inst: std::marker::Copy + 'static> {
     // variables (fields)
     slideouts: HashMap<String,TtkFrame<Inst>>,
     slideout_pathnames: Vec<String>,
-    toolbars: HashMap<String,TtkFrame<Inst>>,
+    toolbars: HashMap<String,(TtkFrame<Inst>,usize)>,
     numtoolbars: usize,
     progress: f64,
     status: String,
@@ -183,6 +183,14 @@ impl<Inst: std::marker::Copy> MainWindow<Inst> {
                 Ok(Some(wid))
             }
         }
+    }
+    pub fn toolbar_add (&mut self,name: &str) -> TkResult<()>
+    {
+        if !self.toolbars.contains_key(&name.to_string()) {
+            self.toolbars.insert(name.to_string(),(self.hull.addtoolbar()?,self.numtoolbars));
+            self.numtoolbars += 1;
+        }
+        Ok(())
     }
 }
 
