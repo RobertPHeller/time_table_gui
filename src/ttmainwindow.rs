@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251017.2351>
+//  Last Modified : <251021.1403>
 //
 //  Description	
 //
@@ -78,16 +78,12 @@ pub struct ChartDisplay<Inst: std::marker::Copy + 'static> {
 }
 
 impl<Inst: std::marker::Copy + 'static> Deref for ChartDisplay<Inst> {
-    type Target = tk::Widget<Inst>;
+    type Target = TkCanvas<Inst>;
 
     fn deref(&self) -> &Self::Target {
         &self.hull
     }
 }
-
-impl<Inst:TkInstance> TkPackSlave  for ChartDisplay<Inst> {}
-impl<Inst:TkInstance> TkGridSlave  for ChartDisplay<Inst> {}
-impl<Inst:TkInstance> TkPlaceSlave for ChartDisplay<Inst> {}
 
 impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
     pub fn new(parent: &Widget<Inst>, timescale: u32, timeinterval: u32, 
@@ -212,6 +208,26 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         Ok(())
     }
     fn _buildChart(&mut self) -> TkResult<()> {
+        self.hull.delete( ("Chart",) )?;
+        let bbox = match self.hull.bbox( ("Cabs", ) )? {
+            None => TkRectangle{ left:0, right:0, top:0, bottom:0 },
+            Some(bbox) => bbox,
+        };
+        let topOff = bbox.bottom;
+        self.topofchart = topOff as f64 + 10.0;
+        self.chartheight = 0.0;
+        self.bottomofchart = self.topofchart;
+        self.totallength = 0.0;
+        for m in (0..=self.timescale).step_by(self.timeinterval as usize) {
+            let mx = self.labelsize as f64 + (((m as f64 / self.timeinterval as f64) * 20.0));
+            let lw = if (m % 60) == 0 {2} else {1};
+            self.hull.create_line(&[(mx,self.topofchart), (mx,self.topofchart)], -width(2) -tags( ("Chart", "Chart:Tick") ) )?;
+        }
+        let r = self.labelsize as f64 + (((self.timescale as f64 / self.timeinterval as f64)) * 20.0);
+        self.hull.create_line(&[(self.labelsize as f64,self.topofchart), (r, self.topofchart)], -width(2) -tags( ("Chart", "Chart:Hline") ) )?;
+        self.hull.create_line(&[(self.labelsize as f64,self.bottomofchart), (r, self.bottomofchart)],  -width(2) -tags(("Chart", "Chart:Bline")))?;
+        self.chartstationoffset = self.topofchart;
+        
         Ok(())
     }
     fn _buildStorageTracks(&mut self) -> TkResult<()> {

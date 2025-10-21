@@ -7,8 +7,8 @@
 //  Date          : $Date$
 //  Author        : $Author$
 //  Created By    : Robert Heller
-//  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251021.1109>
+//  Created       : 2025-10-21 11:07:47
+//  Last Modified : <251021.1108>
 //
 //  Description	
 //
@@ -37,25 +37,14 @@
 // 
 //
 //////////////////////////////////////////////////////////////////////////////
-#![allow(unused_imports)]
-#![doc = include_str!("../README.md")]
 
-//use time_table::*;
 use tk::*;
-//use tk::cmd::*;
-pub mod mainwindow;
-pub mod ttmainwindow;
-pub mod mainframe;
-pub mod scrollwindow;
-pub mod buttonbox;
-pub mod stdmenubar;
-pub mod buttonwidget;
-//use crate::ttmainwindow::*;
+use tk::cmd::*;
 
-
-fn main()  -> TkResult<()>  {
-    let tk = make_tk!()?;
-    let root = tk.root();
-    
-    Ok( main_loop() )
+pub enum ButtonWidget<Inst: std::marker::Copy + 'static> {
+    Plain(TtkButton<Inst>),
+    Check(TtkCheckbutton<Inst>),
+    Radio(TtkRadiobutton<Inst>),
+    Menu(TtkMenubutton<Inst>),
 }
+
