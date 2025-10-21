@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251021.1403>
+//  Last Modified : <251021.1536>
 //
 //  Description	
 //
@@ -48,6 +48,16 @@ use crate::mainwindow::*;
 use std::collections::HashMap;
 use std::ops::Deref;
 
+#[derive(Eq, Hash, PartialEq, Clone, Copy, Debug)]
+enum StationArrayIndex {
+    Y(usize),
+    Smile(usize),
+}
+
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
+enum StorageArrayIndex {
+    Y(String,String),
+}
 
 pub struct ChartDisplay<Inst: std::marker::Copy + 'static> {
     lheight: f64,
@@ -66,8 +76,8 @@ pub struct ChartDisplay<Inst: std::marker::Copy + 'static> {
     bottomofstorage: f64,
     numberofstoragetracks: usize,
     storageoffset: f64,
-    stationarray: HashMap<String,f64>, 
-    storagearray: HashMap<String,f64>,
+    stationarray: HashMap<StationArrayIndex,f64>, 
+    storagearray: HashMap<StorageArrayIndex,f64>,
 
     timescale: u32,
     timeinterval: u32,
@@ -221,7 +231,7 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         for m in (0..=self.timescale).step_by(self.timeinterval as usize) {
             let mx = self.labelsize as f64 + (((m as f64 / self.timeinterval as f64) * 20.0));
             let lw = if (m % 60) == 0 {2} else {1};
-            self.hull.create_line(&[(mx,self.topofchart), (mx,self.topofchart)], -width(2) -tags( ("Chart", "Chart:Tick") ) )?;
+            self.hull.create_line(&[(mx,self.topofchart), (mx,self.bottomofchart)], -width(2) -tags( ("Chart", "Chart:Tick") ) )?;
         }
         let r = self.labelsize as f64 + (((self.timescale as f64 / self.timeinterval as f64)) * 20.0);
         self.hull.create_line(&[(self.labelsize as f64,self.topofchart), (r, self.topofchart)], -width(2) -tags( ("Chart", "Chart:Hline") ) )?;
@@ -231,9 +241,77 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         Ok(())
     }
     fn _buildStorageTracks(&mut self) -> TkResult<()> {
+        self.hull.delete( ("Storage",) )?;
+        let bbox = match self.hull.bbox( ("Chart", ) )? {
+            None => TkRectangle{ left:0, right:0, top:0, bottom:0 },
+            Some(bbox) => bbox,
+        };
+        let topOff = bbox.bottom;
+        self.topofstorage = topOff as f64 + 10.0;
+        self.storagetrackheight = 0.0;
+        self.bottomofstorage = self.topofstorage;
+        self.numberofstoragetracks = 0;
+        for m in (0..=self.timescale).step_by(self.timeinterval as usize) {
+            let mx = self.labelsize as f64 + (((m as f64 / self.timeinterval as f64) * 20.0));
+            let lw = if (m % 60) == 0 {2} else {1};
+            self.hull.create_line(&[(mx,self.topofstorage), (mx,self.bottomofstorage)], -width(2) -tags( ("Storage", "Storage:Tick") ) )?;
+        }
+        let r = self.labelsize as f64 + (((self.timescale as f64 / self.timeinterval as f64)) * 20.0);
+        self.hull.create_line(&[(self.labelsize as f64,self.topofstorage), (r, self.topofstorage)], -width(2) -tags( ("Storage", "Storage:Hline") ) )?;
+        self.hull.create_line(&[(self.labelsize as f64,self.bottomofstorage), (r, self.bottomofstorage)],  -width(2) -tags(("Storage", "Storage:Bline")))?;
+        self.storagearray.clear();
+        self.storageoffset = self.topofstorage;
+        
         Ok(())
     }
     pub fn addAStation(&mut self,station: &Station, sindex: usize) -> TkResult<()> {
+        let mut name: &str = &station.Name();
+        let smile = station.SMile();
+        if smile > self.totallength {self.totallength = smile;}
+        self._updateChart()?;
+        self._updateStorageTracks()?;
+        let offset = self.topofchart + 20.0;
+        let y = offset+(smile * 20.0);
+        self.stationarray.insert(StationArrayIndex::Y(sindex),y);
+        self.stationarray.insert(StationArrayIndex::Smile(sindex),smile);
+        loop {
+            let sl = self.hull.create_text(0.0,y, 
+                -text(name) 
+                -tags( ("Chart", "Station", format!("Station:{}",sindex).as_str()) )
+                -anchor("w"))?;
+            let tags = ( sl.clone(), );
+            let lwid = match self.hull.bbox(tags.clone())? {
+                None => 5,
+                Some(bbox) => bbox.right + 5,
+            };
+            if lwid <= self.labelsize as i32 {break;}
+            self.hull.delete(tags)?;
+            name = &name[0..name.len()-1];
+        }
+        let namebox_bbox = self.hull.bbox( (format!("Station:{}",sindex).as_str(), ) )?.unwrap();
+        let nb = self.hull.create_rectangle(namebox_bbox.left as f64, 
+                                            namebox_bbox.top as f64,
+                                            namebox_bbox.right as f64, 
+                                            namebox_bbox.bottom as f64,
+                                            -fill("white") 
+                                            -outline("black")
+                                             -tags ( ( "Chart",
+                                                  "Station",
+                                                    format!("Station:namebox:{}",
+                                                        sindex).as_str() ) ) )?;
+        self.hull.lower( nb, None )?;
+        let r = self.labelsize as f64 +
+                    (((self.timescale as f64 / self.timeinterval as f64) * 20.0));
+        self.hull.create_line(&[(self.labelsize as f64,y), (r,y)],
+                            -tags( ("Chart",
+                                    "Station",
+                                    format!("Station:Line:{}",sindex).as_str() ))
+                            -width(2) 
+                            -fill("gray50"))?;
+        for storage in station.storagetracks() {
+            self.addAStorageTrack(station,storage)?;
+        }
+            
         Ok(())
     }
     pub fn addAStorageTrack(&mut self,station: &Station, track: &StorageTrack)
