@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251021.1536>
+//  Last Modified : <251021.1713>
 //
 //  Description	
 //
@@ -315,10 +315,50 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         Ok(())
     }
     pub fn addAStorageTrack(&mut self,station: &Station, track: &StorageTrack)
-         -> TkResult<()> { 
+         -> TkResult<()> 
+    {
+        let topOff = match self.hull.bbox( ( "Chart", ) ) {
+            None => 0,
+            Some(bbox) => bbox.bottom,
+        };
+        self.topofstorage = topOffas f64 + 10.0;
+        if self.numberofstoragetracks == 0 {
+            self.numberofstoragetracks = 1;
+            self.storagetrackheight = (2*self.lheight) + 20 as f64;
+            self.bottomofstorage = self.topofstorage + self.storagetrackheight;
+            self.storageyoff = self.lheight as f64 * 1.75;
+        } else {
+            self.numberofstoragetracks += 1;
+            self.storagetrackheight += self.lheight as f64;
+            self.bottomofstorage += self.lheight as f64;
+            self.storageyoff = self.lheight as f64 * 
+                            (self.numberofstoragetracks as f64 + .75);
+        } 
+        let stationName = station.Name();
+        let trackName   = track.Name();
+        let nameOnChart self._formNameOnChart(stationName,trackName);
+        let y = self.storageyoff + self.topofstorage;
+        self.storagearray.insert(StorageArrayIndex::Y(stationName,trackName),y);
+        self.hull.create_text(0.0,y, 
+            -text(nameOnChart) 
+            -tags( ("Storage", 
+                    "Storage:track", 
+                    format!("Storage:{}:{}",stationName,trackName).as_str() ) )
+            -anchor("w"))?;
+        let r = self.labelsize + (((self.timescale as f64 / self.timeinterval as f64) * 20.0));
+        self.hull.create_line(&[(self.labelsize as f64, y),
+                                (r,y)],
+            -tags( ("Storage", "Storage:track",
+                    format!("Storage:{}:{}",stationName,trackName).as_str() ))
+            -width(4) 
+            -stipple(gray50) )?;
         Ok(())
     }
     fn _formNameOnChart(&mut self,sn: &str,rn: &str) -> TkResult<()> {
+        let i = self.hull.create_text(0.0,0.0, 
+            -anchor("w") -text(format!("{}:{}",sn,tn).as_str()) )?;
+        let l1 = self.hull.bbox( (i, ) )?.unwrap().right;
+        self.hull.delet( (i,) )?;
         Ok(())
     }
     pub fn addATrain(&mut self,timetable: &TimeTableSystem, train: &Train)
