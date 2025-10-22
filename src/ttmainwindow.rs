@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251021.1713>
+//  Last Modified : <251021.2148>
 //
 //  Description	
 //
@@ -317,52 +317,258 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
     pub fn addAStorageTrack(&mut self,station: &Station, track: &StorageTrack)
          -> TkResult<()> 
     {
-        let topOff = match self.hull.bbox( ( "Chart", ) ) {
+        let topOff = match self.hull.bbox( ( "Chart", ) )? {
             None => 0,
             Some(bbox) => bbox.bottom,
         };
-        self.topofstorage = topOffas f64 + 10.0;
+        self.topofstorage = topOff as f64 + 10.0;
+        let storageyoff: f64;
         if self.numberofstoragetracks == 0 {
             self.numberofstoragetracks = 1;
-            self.storagetrackheight = (2*self.lheight) + 20 as f64;
+            self.storagetrackheight = (2.0*self.lheight) + 20.0;
             self.bottomofstorage = self.topofstorage + self.storagetrackheight;
-            self.storageyoff = self.lheight as f64 * 1.75;
+            storageyoff = self.lheight as f64 * 1.75;
         } else {
             self.numberofstoragetracks += 1;
             self.storagetrackheight += self.lheight as f64;
             self.bottomofstorage += self.lheight as f64;
-            self.storageyoff = self.lheight as f64 * 
-                            (self.numberofstoragetracks as f64 + .75);
+            storageyoff = self.lheight as f64 * 
+                            (self.numberofstoragetracks as f64 + 0.75);
         } 
         let stationName = station.Name();
         let trackName   = track.Name();
-        let nameOnChart self._formNameOnChart(stationName,trackName);
-        let y = self.storageyoff + self.topofstorage;
-        self.storagearray.insert(StorageArrayIndex::Y(stationName,trackName),y);
+        let nameOnChart = self._formNameOnChart(stationName.as_str(),
+                                                trackName.as_str())?;
+        let y = storageyoff + self.topofstorage;
+        self.storagearray.insert(StorageArrayIndex::Y(stationName.clone(),
+                                                      trackName.clone()),y);
         self.hull.create_text(0.0,y, 
             -text(nameOnChart) 
             -tags( ("Storage", 
                     "Storage:track", 
                     format!("Storage:{}:{}",stationName,trackName).as_str() ) )
             -anchor("w"))?;
-        let r = self.labelsize + (((self.timescale as f64 / self.timeinterval as f64) * 20.0));
+        let r = self.labelsize as f64 + (((self.timescale as f64 / self.timeinterval as f64) * 20.0));
         self.hull.create_line(&[(self.labelsize as f64, y),
                                 (r,y)],
             -tags( ("Storage", "Storage:track",
                     format!("Storage:{}:{}",stationName,trackName).as_str() ))
             -width(4) 
-            -stipple(gray50) )?;
+            -stipple("gray50") )?;
         Ok(())
     }
-    fn _formNameOnChart(&mut self,sn: &str,rn: &str) -> TkResult<()> {
+    fn _formNameOnChart(&mut self,sn_: &str,tn_: &str) -> TkResult<String> {
+        let mut sn = &sn_[0..];
+        let mut tn = &tn_[0..];
         let i = self.hull.create_text(0.0,0.0, 
             -anchor("w") -text(format!("{}:{}",sn,tn).as_str()) )?;
-        let l1 = self.hull.bbox( (i, ) )?.unwrap().right;
-        self.hull.delet( (i,) )?;
-        Ok(())
+        let mut l1: u32 = self.hull.bbox( (i.clone(), ) )?.unwrap().right as u32;
+        self.hull.delete( (i,) )?;
+        let i = self.hull.create_text(0.0,0.0, 
+            -anchor("w") -text(format!("{}:",sn).as_str()) )?;
+        let mut l2: u32 = self.hull.bbox( (i.clone(), ) )?.unwrap().right as u32;
+        self.hull.delete( (i,) )?;
+        //let i = self.hull.create_text(0.0,0.0, -anchor("w") -text(tn))?;
+        //let mut l3 = self.hull.bbox( (i.clone(), ) )?.unwrap().right; 
+        //self.hull.delete( (i,) )?; 
+        while l1 > self.labelsize && l2 as f64 > (self.labelsize as f64 / 2.0) {
+            sn = &sn[0..sn.len()-1];
+            let i = self.hull.create_text(0.0,0.0, 
+                -anchor("w") -text(format!("{}:{}",sn,tn).as_str()) )?;
+            l1 = self.hull.bbox( (i.clone(), ) )?.unwrap().right as u32;
+            self.hull.delete( (i,) )?;
+            let i = self.hull.create_text(0.0,0.0, 
+                -anchor("w") -text(format!("{}:",sn).as_str()) )?;
+            l2 = self.hull.bbox( (i.clone(), ) )?.unwrap().right as u32;
+            self.hull.delete( (i,) )?;
+        }
+        while l1 > self.labelsize {
+            tn = &tn[0..tn.len()-1];
+            let i = self.hull.create_text(0.0,0.0,
+                -anchor("w") -text(format!("{}:{}",sn,tn).as_str()) )?;
+            l1 = self.hull.bbox( (i.clone(), ) )?.unwrap().right as u32;
+            self.hull.delete( (i,) )?;
+        }
+        Ok(format!("{}:{}",sn,tn))
     }
     pub fn addATrain(&mut self,timetable: &TimeTableSystem, train: &Train)
         -> TkResult<()> {
+        let lastX = self.labelsize as f64 + ((self.timescale as f64 / self.timeinterval as f64) * 20.0) + 4.0;
+        let firstX = self.labelsize as f64 + 4.0;
+
+        let mut timeX = -1.0;
+        let mut stationY = -1.0;
+        let mut rStationY = -1.0;
+        let mut color: &str = "";
+        let mut cabName: &str = "";
+        let departure = train.Departure();
+        let oldDepart = -1.0;
+        let oldSmile = -1.0;
+        let speed = train.Speed();
+        let trtags = ("Chart", "Chart:Train", 
+                      format!("Chart:Train:{}",train.Number()).as_str(), 
+                      format!("Train:{}",train.Number()).as_str() );
+        let cabtags = ("Cabs", "Cabs:Train",
+                       format!("Cabs:Train:{}",train.Number()).as_str(), 
+                       format!("Train:{}",train.Number()).as_str() );
+        let tempString1 = format!("Storage:Train:{}",train.Number());
+        let tempString2 = format!("Train:{}",train.Number());
+        let stortags = ("Storage", "Storage:track", "Storage:Train",
+                        tempString1.as_str(),tempString2.as_str());
+        for stop in train.StopIter() {
+            let sindex = stop.StationIndex();
+            let station = timetable.IthStation(sindex).unwrap();
+            let smile = station.SMile();
+            let rSindex = station.DuplicateStationIndex();
+            let (rStation,rsmile,newRStationY) =
+                match rSindex {
+                    None => (None,-1.0,-1.0),
+                    Some(rsind) => {
+                        let rStation = timetable.IthStation(rsind).unwrap();
+                        let rsmile = rStation.SMile();
+                        let newRStationY = self.stationarray.get(&StationArrayIndex::Y(rsind)).unwrap();
+                        (Some(rStation),rsmile,*newRStationY)
+                    },
+            };
+            let departcab = stop.TheCab();
+            let newcolor: String;
+            let newColor: &str;
+            let newname: String;
+            let newCabName: &str;
+            match departcab {
+                None => {
+                    newColor = "black";
+                    newcolor = String::from(newColor);
+                    newCabName = "";
+                    newname = String::from(newCabName);
+                },                    
+                Some(cab) => {
+                    newcolor = cab.Color();
+                    newname =  cab.Name();
+                    newColor = newcolor.as_str();
+                    newCabName = newname.as_str();
+                },
+            };
+            let newStationY = self.stationarray.get(&StationArrayIndex::Y(sindex)).unwrap();
+            let arrival: f64 = if oldDepart >= 0.0 {
+                oldDepart + (smile - oldSmile).abs() * (speed as f64 / 60.0)
+            } else {
+                departure as f64
+            };
+            let storage: Option<&StorageTrack>;
+            let rstorage: Option<&StorageTrack>;
+            match stop.Flag() {
+                StopFlagType::Origin => {
+                    let depart = departure as f64;
+                    storage = station.FindTrackTrainIsStoredOn(train.Number(),depart,depart);
+                    if rStation.is_some() {
+                        rstorage = rStation.unwrap().FindTrackTrainIsStoredOn(train.Number(),depart,depart);
+                    } else {
+                        rstorage = None;
+                    }
+                },
+                StopFlagType::Terminate => {
+                    storage = station.FindTrackTrainIsStoredOn(train.Number(),arrival,arrival);
+                    if rStation.is_some() {
+                        rstorage = rStation.unwrap().FindTrackTrainIsStoredOn(train.Number(),arrival,arrival);
+                    } else {
+                        rstorage = None;
+                    }
+                },
+                StopFlagType::Transit => {
+                    storage = None;
+                    rstorage = None;
+                },
+            };
+            if storage.is_some() {
+                let stationName = station.Name();
+                let trackName   = storage.unwrap().Name();
+                let sy = *self.storagearray.get(&StorageArrayIndex::Y(stationName,trackName)).unwrap();
+                let occupiedA = storage.unwrap().IncludesTime(arrival);
+                let occupiedD = storage.unwrap().IncludesTime(departure as f64);
+                if occupiedA.is_some() &&
+                   occupiedA.unwrap().TrainNum() == train.Number() {
+                    let from = occupiedA.unwrap().From();
+                    let to   = occupiedA.unwrap().Until();
+                    let fromX = self.labelsize as f64 +
+                                    ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                    let toX   = self.labelsize as f64 +
+                                    ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                    if toX > fromX {
+                        self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    } else {
+                        self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                        self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    }
+                }
+                if occupiedD.is_some() &&
+                   occupiedD.unwrap().TrainNum2() == train.Number() {
+                    let from = occupiedD.unwrap().From();
+                    let to   = occupiedD.unwrap().Until();
+                    let fromX = self.labelsize as f64 +
+                                    ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                    let toX   = self.labelsize as f64 +
+                                    ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                    if toX > fromX {
+                        self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    } else {
+                        self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                        self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    }
+                }
+            }
+            if rstorage.is_some() {
+                let stationName = rStation.unwrap().Name();
+                let trackName   = rstorage.unwrap().Name();
+                let sy = *self.storagearray.get(&StorageArrayIndex::Y(stationName,trackName)).unwrap();
+                let occupiedA = rstorage.unwrap().IncludesTime(arrival);
+                let occupiedD = rstorage.unwrap().IncludesTime(departure as f64);
+                if occupiedA.is_some() &&
+                   occupiedA.unwrap().TrainNum() == train.Number() {
+                    let from = occupiedA.unwrap().From();
+                    let to   = occupiedA.unwrap().Until();
+                    let fromX = self.labelsize as f64 +
+                                    ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                    let toX   = self.labelsize as f64 +
+                                    ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                    if toX > fromX {
+                        self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    } else {
+                        self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                        self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    }
+                }
+                if occupiedD.is_some() &&
+                   occupiedD.unwrap().TrainNum2() == train.Number() {
+                    let from = occupiedD.unwrap().From();
+                    let to   = occupiedD.unwrap().Until();
+                    let fromX = self.labelsize as f64 +
+                                    ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                    let toX   = self.labelsize as f64 +
+                                    ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                    if toX > fromX {
+                        self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    } else {
+                        self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                        self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                            -fill(newColor) -width(8) -tags(stortags))?;
+                    }
+                }
+            }
+            let newTimeX = self.labelsize as f64 + ((arrival / self.timeinterval as f64) * 20.0) + 4.0;
+
+        }
         Ok(())
     }
     fn mx2minutes(&self, mx: i32) -> TkResult<()> {
