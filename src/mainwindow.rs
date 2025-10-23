@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:42:03
-//  Last Modified : <251021.1307>
+//  Last Modified : <251023.1435>
 //
 //  Description	
 //
@@ -38,7 +38,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-use tcl::*;
+//use tcl::*;
 use tk::*;
 use tk::cmd::*;
 use std::ops::Deref;
@@ -47,9 +47,10 @@ use crate::scrollwindow::*;
 use crate::buttonwidget::*;
 use crate::buttonbox::*;
 use crate::stdmenubar::*;
+use crate::ttmainwindow::ChartDisplay;
 use std::collections::HashMap;
 //use proc_macro2::TokenStream;
-use tk::opt::{TkOption,TtkButtonOpt,TtkCheckbuttonOpt,TtkRadiobuttonOpt,
+use tk::opt::{TtkButtonOpt,TtkCheckbuttonOpt,TtkRadiobuttonOpt,
                 TtkMenubuttonOpt,OptPair};
 use tuplex::IntoHomoTuple;
 
@@ -109,6 +110,13 @@ impl<Inst: std::marker::Copy + 'static> Setwidget<TtkTreeview<Inst>> for MainWin
     fn setwidget(&mut self, wid: TtkTreeview<Inst>) -> TkResult<()>
     {
         self.scrollwindow.setwidget(wid)
+    }
+}
+
+impl<Inst: std::marker::Copy + 'static> Setwidget<ChartDisplay<Inst>> for MainWindow<Inst> {
+   fn setwidget(&mut self, wid: ChartDisplay<Inst>) -> TkResult<()>
+    {
+        self.scrollwindow.setwidget(wid.Hull())
     }
 }
 

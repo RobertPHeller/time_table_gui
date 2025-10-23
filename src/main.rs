@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251021.1109>
+//  Last Modified : <251023.1518>
 //
 //  Description	
 //
@@ -37,12 +37,13 @@
 // 
 //
 //////////////////////////////////////////////////////////////////////////////
-#![allow(unused_imports)]
+//#![allow(unused_imports)]
 #![doc = include_str!("../README.md")]
 
-//use time_table::*;
+use time_table::*;
 use tk::*;
-//use tk::cmd::*;
+use tk::cmd::*;
+use tcl::*;
 pub mod mainwindow;
 pub mod ttmainwindow;
 pub mod mainframe;
@@ -50,12 +51,26 @@ pub mod scrollwindow;
 pub mod buttonbox;
 pub mod stdmenubar;
 pub mod buttonwidget;
-//use crate::ttmainwindow::*;
+use crate::ttmainwindow::*;
+
 
 
 fn main()  -> TkResult<()>  {
     let tk = make_tk!()?;
     let root = tk.root();
-    
+    let tt: &TimeTableSystem = &TimeTableSystem::old("LJandBS.tt")
+                .expect("Failed to open LJandBS.tt");
+    let mut mw = TimeTableMainWindow::new(&root)?;
+    mw.Chart().buildWholeChart(tt)?;
+    //mw?.menu_entryconfigure("file",1,
+    //    -command( tclosure!( tk,  || -> TkResult<()> {
+    //        let result = tk.eval("tk_getOpenFile -filetypes { {TT .tt TEXT} {All * TEXT} } -title {Enter file to open}")?.to_string();
+    //        //eprintln!("result is {}",result);
+    //        match TimeTableSystem::old(&result) {
+    //            Err(p) => {eprintln!("Error opening {}: {:?}",result,p);},
+    //            Ok(t) => tt = t,
+    //        };
+    //        Ok(())
+    //    })))?;
     Ok( main_loop() )
 }

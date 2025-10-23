@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251022.2133>
+//  Last Modified : <251023.1522>
 //
 //  Description	
 //
@@ -44,9 +44,11 @@ use time_table::station::*;
 use time_table::train::*;
 use tk::*;
 use tk::cmd::*;
-use tk::canvas::{SearchSpec,item_tag,ItemId,ItemTag};
+use tk::canvas::{SearchSpec,item_tag,ItemId,ItemTag,ItemType};
+use crate::stdmenubar::*;
 use crate::mainwindow::*;
 use crate::scrollwindow::*;
+use crate::mainframe::*;
 use std::collections::HashMap;
 use std::ops::Deref;
 
@@ -65,6 +67,8 @@ enum StorageArrayIndex {
 enum CabArrayIndex {
     Y(String),
 }
+
+#[derive(Clone)]
 pub struct ChartDisplay<Inst: std::marker::Copy + 'static> {
     lheight: f64,
     topofcabs: f64,
@@ -102,7 +106,7 @@ impl<Inst: std::marker::Copy + 'static> Deref for ChartDisplay<Inst> {
 }
 
 impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
-    pub fn new(parent: &Widget<Inst>, timescale: u32, timeinterval: u32, 
+    pub fn new(parent: &Widget<Inst>,path: &'static str, timescale: u32, timeinterval: u32, 
                 labelsize: u32) -> TkResult<Self> {
         let mut this = Self {lheight: 0.0, topofcabs: 0.0, cabheight: 0.0,
                              bottomofcabs: 0.0, numberofcabs: 0, 
@@ -113,7 +117,7 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
                              bottomofstorage: 0.0, numberofstoragetracks: 0,
                              storageoffset: 0.0, stationarray: HashMap::new(),
                              storagearray: HashMap::new(),
-                             hull: parent.add_canvas( -background("white") -borderwidth(0) -highlightthickness(0) -relief("flat") )?,
+                             hull: parent.add_canvas(path -background("white") -borderwidth(0) -highlightthickness(0) -relief("flat") )?,
                              timescale: if timescale == 0 {1440} else {timescale}, 
                              timeinterval: if timeinterval == 0 {15} else {timeinterval},
                              labelsize: labelsize, };
@@ -875,36 +879,233 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
             coords.push(bbox.bottom as f64);
             self.hull.set_coords(theItemTag,coords.into())?;
         }
+        let ymove = offset - self.chartstationoffset;
+        self.hull.move_( ItemTag("Chart:Train".to_string()), 0.0, ymove )?;
+        self.chartstationoffset = offset;
+        let totalheight = self.hull.bbox( ("all", ))?.unwrap().bottom;
+        let mut sr = self.hull.cget( scrollregion )?
+                .get_elements()?
+                .map( |obj| obj.as_f64() )
+                .collect::<Vec<_>>();
+        if totalheight as f64 > sr[3] {
+            sr[3] = totalheight as f64;
+            self.hull.configure(-scrollregion(sr))?;
+        }
         Ok(())
     }
     fn _updateStorageTracks(&mut self) -> TkResult<()> {
+        let topOff = match self.hull.bbox( ("Chart", ) )? {
+            None => 0,
+            Some(bbox) => bbox.bottom,
+        };
+        self.topofstorage = topOff as f64 + 10.0;
+        self.bottomofstorage = self.topofstorage + self.storagetrackheight;
+        let ty: f64;
+        let by: f64;
+        if self.numberofstoragetracks == 0 {
+            ty = self.topofstorage;
+            by = self.bottomofstorage;
+        } else {
+            ty = self.topofstorage + 10.0;
+            by = self.bottomofstorage - 10.0;
+        }
+        let taglist = self.hull.find(SearchSpec::WithTag(
+                        item_tag( "Storage:Tick" ).into()))?;
+        for tick in taglist.get_elements()?
+                        .map( |obj| ItemId(obj.to_string())) {
+            let mut coords = self.hull.coords(tick.clone())?.get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>();
+            coords[1] = ty;
+            coords[3] = by;
+            self.hull.set_coords(tick,coords.into())?;
+        }
+        let mut tick = ItemTag ( "Storage:Hline".to_owned() ) ;
+        let mut coords = self.hull.coords( tick.clone() )?
+                        .get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>(); 
+        coords[1] = ty;
+        coords[3] = by;
+        self.hull.set_coords(tick,coords.into())?;
+        tick =  ItemTag ( "Storage:Bline".to_owned() );
+        coords = self.hull.coords(tick.clone())?                     
+                        .get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>();
+        coords[1] = ty;
+        coords[3] = by;
+        self.hull.set_coords(tick,coords.into())?;
+        if self.numberofstoragetracks != 0 {
+            let offset = self.topofstorage + 20.0;
+            let ymove = offset - self.storageoffset;
+            self.hull.move_( ItemTag("Storage:track".to_string()), 0.0, ymove)?;
+            let taglist = self.hull.find(SearchSpec::WithTag(
+                                item_tag( "Storage:track" ).into()))?;
+            for item in taglist.get_elements()?
+                            .map( |obj| ItemId(obj.to_string())) {
+                match self.hull.type_(item.clone())? {
+                    Some(thetype)  => {
+                        match thetype {
+                            ItemType::Text => {
+                                let sy = self.hull.coords(item.clone())?
+                                        .get_elements()?
+                                        .map( |obj| obj.as_f64() )
+                                        .collect::<Vec<_>>()[1];
+                                for t in self.hull.gettags(item.clone())?.iter() {
+                                    let mut tagsplit = t.0.split(':');
+                                    match tagsplit.next() {
+                                        Some("Storage") => {
+                                            let stationName = tagsplit.next();
+                                            let trackName   = tagsplit.next();
+                                            if stationName.is_some() &&
+                                               trackName.is_some() {
+                                                let stationName = stationName.unwrap();
+                                                let trackName = trackName.unwrap();
+                                                let elt = self.storagearray.get_mut(&StorageArrayIndex::Y(stationName.to_string(),trackName.to_string())).unwrap();
+                                                *elt = sy;
+                                            }
+                                        },
+                                        _ => (),
+                                    }
+                                }
+                            },
+                            _ => (),
+                        }
+                    },
+                    _ => (),
+                }
+            }
+            self.storageoffset = offset;
+            let totalheight = self.hull.bbox( ("all", ))?.unwrap().bottom;
+            let mut sr = self.hull.cget( scrollregion )?
+                    .get_elements()?
+                    .map( |obj| obj.as_i32() )
+                    .collect::<Vec<_>>();
+            if totalheight > sr[3] {
+                sr[3] = totalheight;
+                self.hull.configure(-scrollregion(sr))?;
+            }
+        }
         Ok(())
     }
     fn _updateCabs(&mut self) -> TkResult<()> {
+        let ty: f64;
+        let by: f64;
+        if self.numberofcabs == 0 {
+            ty = self.topofcabs;
+            by = self.bottomofcabs;
+        } else {
+            ty = self.topofcabs + 10.0;
+            by = self.bottomofcabs - 10.0;
+        }
+        let taglist = self.hull.find(SearchSpec::WithTag(
+                        item_tag( "Cabs:Tick" ).into()))?;
+        for tick in taglist.get_elements()?
+                        .map( |obj| ItemId(obj.to_string())) {
+            let mut coords = self.hull.coords(tick.clone())?.get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>();
+            coords[1] = ty;
+            coords[3] = by;
+            self.hull.set_coords(tick,coords.into())?;
+        }
+        let mut tick = ItemTag ( "Cabs:Hline".to_owned() ) ;
+        let mut coords = self.hull.coords( tick.clone() )?
+                        .get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>(); 
+        coords[1] = ty;
+        coords[3] = by;
+        self.hull.set_coords(tick,coords.into())?;
+        tick =  ItemTag ( "Cabs:Bline".to_owned() );
+        coords = self.hull.coords(tick.clone())?                     
+                        .get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>();
+        coords[1] = ty;
+        coords[3] = by;
+        self.hull.set_coords(tick,coords.into())?;
+        let totalheight = self.hull.bbox( ("all", ))?.unwrap().bottom;
+        let mut sr = self.hull.cget( scrollregion )?
+                .get_elements()?
+                .map( |obj| obj.as_i32() )
+                .collect::<Vec<_>>();
+        if totalheight > sr[3] {
+            sr[3] = totalheight;
+            self.hull.configure(-scrollregion(sr))?;
+        }
         Ok(())
     }
     pub fn buildWholeChart(&mut self, timetable: &TimeTableSystem) -> TkResult<()> {
+        self.deleteWholeChart();
+        self.timescale = timetable.TimeScale();
+        self.timeinterval = timetable.TimeInterval();
+        self.totallength = timetable.TotalLength();
+        self.chartheight = (self.totallength * 20.0) + 20.0;
+
+        self._buildTimeLine()?;
+        self._buildCabs()?;
+        self._buildChart()?;
+        self._buildStorageTracks()?;
+
+        for (name, cab) in timetable.CabsIter() {
+            self.addACab(cab)?;
+        }
+        let mut sindex = 0;
+        for station in timetable.StationsIter() {
+            self.addAStation(station,sindex)?;
+            sindex += 1;
+        }
+        for (number,train) in timetable.TrainsIter() {
+            self.addATrain(timetable,train)?;
+        }
         Ok(())
     }
+    pub(crate) fn Hull(&self) -> TkCanvas<Inst> {self.hull}
+}
+
+pub struct TimeTableMainWindow<Inst: std::marker::Copy + 'static> {
+    focus_nowhere: TkCanvas<Inst>,
+    main:         MainWindow<Inst>,
+    sys_config_file: String,
+    chart_display: ChartDisplay<Inst>,
+}
+
+impl<Inst: std::marker::Copy> TimeTableMainWindow<Inst> {
+    pub fn new(parent: &Widget<Inst>) -> TkResult<Self> 
+    {
+        let menu = MenuType::new_std_menu();
+        let focus_nowhere = parent.add_canvas("focusNowhere")?;
+        let mut main = MainWindow::new(parent,"main",640,480,SeparatorType::None,
+                                    &menu)?;
+        main.pack(-expand("yes") -fill("both"))?;
+        let main_window =  main.getframe();
+        let chart_display = ChartDisplay::new(main_window,"chart",1440,15,100)?;
+        main.setwidget(chart_display.Hull())?;
+        //main.menu_delete("help","On Keys...")?;
+        //main.menu_delete("help","Index...")?;
+        let toplevel = main.winfo_toplevel()?;
+        toplevel.set_wm_title("Time Table V2")?;
+        main.menu_entryconfigure("file",4,-command(("destroy", ".")))?;
+        main.menu_entryconfigure("file",5,-command("exit"))?;
+        let /*mut*/ this = Self {
+            focus_nowhere: focus_nowhere,
+            main: main,
+            sys_config_file: String::new(),
+            chart_display: chart_display,
+        };
+        Ok(this)
+    }
+    pub fn Chart(&mut self) -> &mut ChartDisplay<Inst> {&mut self.chart_display}
 }
 
 
-pub struct TimeTable<Inst: std::marker::Copy + 'static> {
-    FocusNowhere: TkCanvas<Inst>,
-    Main:         MainWindow<Inst>,
-    SysConfigFile: String,
-    MainWindow:   ScrollWindow<Inst>,
-    ChartDisplay: ChartDisplay<Inst>,
-}
-
-impl<Inst: std::marker::Copy> TimeTable<Inst> {
-}
-
-impl<Inst: std::marker::Copy + 'static> Deref for TimeTable<Inst> {
+impl<Inst: std::marker::Copy + 'static> Deref for TimeTableMainWindow<Inst> {
     type Target = MainWindow<Inst>;
 
     fn deref(&self) -> &Self::Target {
-        &self.Main
+        &self.main
     }
 }
 
@@ -919,10 +1120,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ChartDisplay_new0 () -> TkResult<()> {
+    fn TimeTableMainWindow_new () -> TkResult<()> {
         let tk = make_tk!()?;
         let root = tk.root();
-        let temp = ChartDisplay::new(&root,0,0,0)?.pack(-fill("both"));
+        let mw = TimeTableMainWindow::new(&root);
         Ok( main_loop() )
     }
 }

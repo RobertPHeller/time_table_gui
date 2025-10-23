@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-18 02:12:18
-//  Last Modified : <251019.1230>
+//  Last Modified : <251023.1210>
 //
 //  Description	
 //
@@ -111,8 +111,8 @@ impl MenuType {
             Self::new_command("De-select All","edit:deselectall edit:havesel","",MenuType::Nil);
         _std_edit_menu_cs = 
             Self::new_command("Select All","edit:selectall","",_std_edit_menu_cs);
-        //_std_edit_menu_cs = 
-        //    Self::new_separator(_std_edit_menu_cs);
+        _std_edit_menu_cs = 
+            Self::new_separator(_std_edit_menu_cs);
         _std_edit_menu_cs = 
             Self::new_command("&Delete","edit:delete edit:havesel","Ctrl d",_std_edit_menu_cs);
         _std_edit_menu_cs = 
