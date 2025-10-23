@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : 2025-10-17 13:05:15
-//  Last Modified : <251021.2148>
+//  Last Modified : <251022.2133>
 //
 //  Description	
 //
@@ -44,7 +44,9 @@ use time_table::station::*;
 use time_table::train::*;
 use tk::*;
 use tk::cmd::*;
+use tk::canvas::{SearchSpec,item_tag,ItemId,ItemTag};
 use crate::mainwindow::*;
+use crate::scrollwindow::*;
 use std::collections::HashMap;
 use std::ops::Deref;
 
@@ -59,13 +61,17 @@ enum StorageArrayIndex {
     Y(String,String),
 }
 
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
+enum CabArrayIndex {
+    Y(String),
+}
 pub struct ChartDisplay<Inst: std::marker::Copy + 'static> {
     lheight: f64,
     topofcabs: f64,
     cabheight: f64,
     bottomofcabs: f64,
     numberofcabs: usize,
-    cabarray: HashMap<String,f64>,
+    cabarray: HashMap<CabArrayIndex,f64>,
     topofchart: f64,
     chartheight: f64,
     bottomofchart: f64,
@@ -209,7 +215,7 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         let t2 = String::from("Cabs:Name:")+&cabName;
         self.hull.create_text(0.0,cabyoff + self.topofcabs,
                 -text(cabName.clone()) -fill(cabColor.clone()) -tags(("Cabs", t2)) -anchor("w"))?;
-        self.cabarray.insert(cabName.clone()+",y",cabyoff+self.topofcabs);
+        self.cabarray.insert(CabArrayIndex::Y(cabName.clone()),cabyoff+self.topofcabs);
         let r = self.labelsize as f64 + ((self.timescale as f64 / self.timeinterval as f64) * 20.0);
         let t2 = String::from("Cabs:Line:")+&cabName;
         self.hull.create_line(&[(self.labelsize as f64, cabyoff+self.topofcabs),
@@ -399,22 +405,31 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
         let mut timeX = -1.0;
         let mut stationY = -1.0;
         let mut rStationY = -1.0;
-        let mut color: &str = "";
-        let mut cabName: &str = "";
+        // The next two variables are not referenced the first time
+        // through the loop (because timeX is initialized to -1),
+        // but the dumb compiler is afraid they might be referenced
+        // when uninitialized.
+        let mut color: String = String::from("black");
+        let mut cabName: String = String::new();
         let departure = train.Departure();
-        let oldDepart = -1.0;
-        let oldSmile = -1.0;
+        let mut oldDepart = -1.0;
+        let mut oldSmile = -1.0;
         let speed = train.Speed();
-        let trtags = ("Chart", "Chart:Train", 
-                      format!("Chart:Train:{}",train.Number()).as_str(), 
-                      format!("Train:{}",train.Number()).as_str() );
-        let cabtags = ("Cabs", "Cabs:Train",
-                       format!("Cabs:Train:{}",train.Number()).as_str(), 
-                       format!("Train:{}",train.Number()).as_str() );
-        let tempString1 = format!("Storage:Train:{}",train.Number());
+        // The 6 "tempStringN" variables are used to hold the memory for
+        // the slices in the tag tuples.  They are not otherwised used,
+        // Really the compiler should figure this out, but it just complains.
+        let tempString1 = format!("Chart:Train:{}",train.Number());
         let tempString2 = format!("Train:{}",train.Number());
+        let trtags = ("Chart", "Chart:Train", 
+                      tempString1.as_str(), tempString2.as_str() );
+        let tempString3 = format!("Cabs:Train:{}",train.Number());
+        let tempString4 = format!("Train:{}",train.Number());
+        let cabtags = ("Cabs", "Cabs:Train",
+                       tempString3.as_str(), tempString4.as_str() );
+        let tempString5 = format!("Storage:Train:{}",train.Number());
+        let tempString6 = format!("Train:{}",train.Number());
         let stortags = ("Storage", "Storage:track", "Storage:Train",
-                        tempString1.as_str(),tempString2.as_str());
+                        tempString5.as_str(),tempString6.as_str());
         for stop in train.StopIter() {
             let sindex = stop.StationIndex();
             let station = timetable.IthStation(sindex).unwrap();
@@ -432,21 +447,17 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
             };
             let departcab = stop.TheCab();
             let newcolor: String;
-            let newColor: &str;
             let newname: String;
-            let newCabName: &str;
+            //let newColor: &str;
+            //let newCabName: &str;
             match departcab {
                 None => {
-                    newColor = "black";
-                    newcolor = String::from(newColor);
-                    newCabName = "";
-                    newname = String::from(newCabName);
+                    newcolor = String::from("black");
+                    newname = String::new();
                 },                    
                 Some(cab) => {
                     newcolor = cab.Color();
                     newname =  cab.Name();
-                    newColor = newcolor.as_str();
-                    newCabName = newname.as_str();
                 },
             };
             let newStationY = self.stationarray.get(&StationArrayIndex::Y(sindex)).unwrap();
@@ -496,12 +507,12 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
                                     ((to / self.timeinterval as f64) * 20.0) + 4.0;
                     if toX > fromX {
                         self.hull.create_line(&[(fromX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     } else {
                         self.hull.create_line(&[(fromX,sy),(lastX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                         self.hull.create_line(&[(firstX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     }
                 }
                 if occupiedD.is_some() &&
@@ -514,12 +525,12 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
                                     ((to / self.timeinterval as f64) * 20.0) + 4.0;
                     if toX > fromX {
                         self.hull.create_line(&[(fromX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     } else {
                         self.hull.create_line(&[(fromX,sy),(lastX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                         self.hull.create_line(&[(firstX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     }
                 }
             }
@@ -539,12 +550,12 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
                                     ((to / self.timeinterval as f64) * 20.0) + 4.0;
                     if toX > fromX {
                         self.hull.create_line(&[(fromX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     } else {
                         self.hull.create_line(&[(fromX,sy),(lastX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                         self.hull.create_line(&[(firstX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     }
                 }
                 if occupiedD.is_some() &&
@@ -557,27 +568,313 @@ impl<Inst: std::marker::Copy> ChartDisplay<Inst> {
                                     ((to / self.timeinterval as f64) * 20.0) + 4.0;
                     if toX > fromX {
                         self.hull.create_line(&[(fromX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     } else {
                         self.hull.create_line(&[(fromX,sy),(lastX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                         self.hull.create_line(&[(firstX,sy),(toX,sy)],
-                            -fill(newColor) -width(8) -tags(stortags))?;
+                            -fill(newcolor.as_str()) -width(8) -tags(stortags))?;
                     }
                 }
             }
-            let newTimeX = self.labelsize as f64 + ((arrival / self.timeinterval as f64) * 20.0) + 4.0;
-
+            let mut newTimeX = self.labelsize as f64 + ((arrival / self.timeinterval as f64) * 20.0) + 4.0;
+            if timeX >= 0.0 {
+                if newTimeX > timeX {
+                    self.hull.create_line(
+                        &[(timeX,stationY),(newTimeX,*newStationY)],
+                        -fill(color.clone()) -width(4) -tags(trtags))?;
+                    if rStationY >= 0.0 && newRStationY >= 0.0 {
+                        self.hull.create_line(
+                            &[(timeX,rStationY),(newTimeX,newRStationY)],
+                            -fill(color.clone()) -width(4) -tags(trtags))?;
+                    }
+                    match self.cabarray.get(&CabArrayIndex::Y(cabName.clone())) {
+                        None => (),
+                        Some(cy) => {
+                            self.hull.create_line(
+                                &[(timeX,*cy),(newTimeX,*cy)],
+                                -fill(color.clone())   -width(8) -tags(cabtags))?;
+                        },
+                    }
+                } else {
+                    let unwrapNX = newTimeX - lastX;
+                    let slope = (newStationY - stationY) as f64 / (unwrapNX - timeX) as f64;
+                    let midY = stationY + (slope * (lastX - timeX));
+                    self.hull.create_line(&[(timeX,stationY),(lastX,midY)],
+                                -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    self.hull.create_line(&[(firstX,midY),(newTimeX,*newStationY)],
+                                -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    if rStationY >= 0.0 && newRStationY >= 0.0 {
+                        let slope = (newRStationY - rStationY) as f64 / 
+                                    (unwrapNX - timeX) as f64;
+                        let midY = rStationY + (slope * (lastX - timeX));
+                        self.hull.create_line(&[(timeX,rStationY),
+                                                (lastX,midY)],
+                                -fill(color.clone()) -width(4) -tags(trtags) )?;
+                        self.hull.create_line(&[(firstX,midY),
+                                                (newTimeX,newRStationY)],
+                                -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    }
+                    match self.cabarray.get(&CabArrayIndex::Y(cabName.clone())) {
+                        None => (),
+                        Some(cy) => {
+                            self.hull.create_line(
+                                &[(timeX,*cy),(newTimeX,*cy)],
+                                -fill(color.clone())   -width(8) -tags(cabtags))?;
+                        },
+                    }
+                }
+            }
+            timeX = newTimeX;
+            cabName = newname;
+            color = newcolor;
+            stationY = *newStationY;
+            rStationY = newRStationY;
+            let depart = stop.Departure(arrival);
+            if depart > arrival {
+                let (cy, dontdrawcab): (f64, bool) = 
+                    match self.cabarray.get(&CabArrayIndex::Y(cabName.clone())) {
+                        None => (0.0, true),
+                        Some(cy) => (*cy, false),
+                };
+                newTimeX = self.labelsize as f64 + ((depart / self.timeinterval as f64) * 20.0) + 4.0;
+                if newTimeX > timeX {
+                    self.hull.create_line(
+                        &[(timeX,stationY),(newTimeX,stationY)],
+                        -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    if rStationY >= 0.0 {
+                        self.hull.create_line(
+                            &[(timeX,rStationY),(newTimeX,rStationY)], 
+                            -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    }
+                    if !dontdrawcab {
+                        self.hull.create_line(
+                            &[(timeX,cy),(newTimeX,cy)],
+                            -fill(color.clone())   -width(8) -tags(cabtags) )?;
+                    }
+                } else {
+                    self.hull.create_line(
+                        &[(timeX,stationY),(lastX,stationY)],
+                        -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    self.hull.create_line(
+                        &[(firstX,stationY),(newTimeX,stationY)],
+                        -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    if rStationY >= 0.0 {
+                        self.hull.create_line(
+                            &[(timeX,rStationY),(lastX,rStationY)], 
+                            -fill(color.clone()) -width(4) -tags(trtags) )?;
+                        self.hull.create_line(
+                            &[(firstX,rStationY),(newTimeX,rStationY)], 
+                            -fill(color.clone()) -width(4) -tags(trtags) )?;
+                    }
+                    if !dontdrawcab {
+                        self.hull.create_line(
+                            &[(timeX,cy),(lastX,cy)],
+                            -fill(color.clone())   -width(8) -tags(cabtags) )?;
+                        self.hull.create_line(
+                            &[(firstX,cy),(newTimeX,cy)],
+                            -fill(color.clone())   -width(8) -tags(cabtags) )?;
+                    }
+                }
+                let storage = station.FindTrackTrainIsStoredOn(train.Number(),arrival,depart);
+                if storage.is_some() {
+                    let stationName = station.Name();
+                    let trackName   = storage.unwrap().Name();
+                    let sy = *self.storagearray.get(&StorageArrayIndex::Y(stationName,trackName)).unwrap();
+                    let occupiedA = storage.unwrap().IncludesTime(arrival);
+                    let occupiedD = storage.unwrap().IncludesTime(depart);
+                    if occupiedA.is_some() &&
+                       occupiedA.unwrap().TrainNum() == train.Number() {
+                        let from = occupiedA.unwrap().From();
+                        let to   = occupiedA.unwrap().Until();
+                        let fromX = self.labelsize as f64 +
+                                        ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                        let toX   = self.labelsize as f64 +
+                                        ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                        if toX > fromX {
+                            self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                                -fill(color.as_str()) -width(8) -tags(stortags))?;
+                        } else {
+                            self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                                -fill(color.as_str()) -width(8) -tags(stortags))?;
+                            self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                                -fill(color.as_str()) -width(8) -tags(stortags))?;
+                        }
+                    }
+                    if occupiedD.is_some() &&
+                       occupiedA != occupiedD &&
+                       occupiedD.unwrap().TrainNum() == train.Number() {
+                        let from = occupiedD.unwrap().From();
+                        let to   = occupiedD.unwrap().Until();
+                        let fromX = self.labelsize as f64 +
+                                        ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                        let toX   = self.labelsize as f64 +
+                                        ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                        if toX > fromX {
+                            self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                                -fill(color.as_str()) -width(8) -tags(stortags))?;
+                        } else {
+                            self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                                -fill(color.as_str()) -width(8) -tags(stortags))?;
+                            self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                                -fill(color.as_str()) -width(8) -tags(stortags))?;
+                        }
+                    }
+                        
+                }
+                if rStation.is_some() {
+                    let storage = rStation
+                                    .unwrap()
+                                    .FindTrackTrainIsStoredOn(train.Number(),
+                                                              arrival,
+                                                              depart);
+                    if storage.is_some() {
+                        let stationName = rStation.unwrap().Name();
+                        let trackName   = storage.unwrap().Name();
+                        let sy = *self.storagearray.get(&StorageArrayIndex::Y(stationName,trackName)).unwrap();
+                        let occupiedA = storage.unwrap().IncludesTime(arrival);
+                        let occupiedD = storage.unwrap().IncludesTime(depart);
+                        if occupiedA.is_some() &&
+                           occupiedA.unwrap().TrainNum() == train.Number() {
+                            let from = occupiedA.unwrap().From();
+                            let to   = occupiedA.unwrap().Until();
+                            let fromX = self.labelsize as f64 +
+                                            ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                            let toX   = self.labelsize as f64 +
+                                            ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                            if toX > fromX {
+                                self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                                    -fill(color.as_str()) -width(8) -tags(stortags))?;
+                            } else {
+                                self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                                    -fill(color.as_str()) -width(8) -tags(stortags))?;
+                                self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                                    -fill(color.as_str()) -width(8) -tags(stortags))?;
+                            }
+                        }
+                        if occupiedD.is_some() &&
+                           occupiedA != occupiedD &&
+                           occupiedD.unwrap().TrainNum() == train.Number() {
+                            let from = occupiedD.unwrap().From();
+                            let to   = occupiedD.unwrap().Until();
+                            let fromX = self.labelsize as f64 +
+                                            ((from / self.timeinterval as f64) * 20.0) + 4.0;
+                            let toX   = self.labelsize as f64 +
+                                            ((to / self.timeinterval as f64) * 20.0) + 4.0;
+                            if toX > fromX {
+                                self.hull.create_line(&[(fromX,sy),(toX,sy)],
+                                    -fill(color.as_str()) -width(8) -tags(stortags))?;
+                            } else {
+                                self.hull.create_line(&[(fromX,sy),(lastX,sy)],
+                                    -fill(color.as_str()) -width(8) -tags(stortags))?;
+                                self.hull.create_line(&[(firstX,sy),(toX,sy)],
+                                    -fill(color.as_str()) -width(8) -tags(stortags))?;
+                            }
+                        }
+                    }
+                }
+                timeX = newTimeX;
+            }
+            oldDepart = depart;
+            oldSmile  = smile;
         }
         Ok(())
     }
-    fn mx2minutes(&self, mx: i32) -> TkResult<()> {
-        Ok(())
+    fn mx2minutes(&self, mx: i32) -> TkResult<f64> {
+        let cx = self.hull.canvasx(mx as f64,None)?;
+        let time = ((cx - self.labelsize as f64 - 4.0) / 20.0) * self.timeinterval as f64;
+        Ok(time)
     }
     pub fn deleteTrain(&mut self, trainnumber: &str) -> TkResult<()> {
+        self.hull.delete( (format!("Train:{}",trainnumber), ) )?;
         Ok(())
     }
     fn _updateChart(&mut self) -> TkResult<()> {
+        let topOff = match self.hull.bbox( ("Cabs", ) )? {
+            None => 0,
+            Some(bbox) => bbox.bottom,
+        };
+        self.topofchart = (topOff + 10) as f64;
+        let ty: f64;
+        let by: f64;
+        if self.totallength == 0.0 {
+            self.bottomofchart = self.topofchart;
+            ty = self.topofchart;
+            by = self.bottomofchart;
+            self.chartheight = 0.0;
+        } else {
+            self.chartheight = (self.totallength * 20.0) + 20.0;
+            self.bottomofchart = self.topofchart + self.chartheight + 20.0;
+            ty = self.topofchart + 10.0;
+            by = self.bottomofchart - 10.0;
+        }
+        let taglist = self.hull.find(SearchSpec::WithTag( 
+                        item_tag( "Chart:Tick" ).into()))?;
+        for tick in taglist.get_elements()?
+                            .map( |obj| ItemId(obj.to_string())) {
+            let mut coords = self.hull.coords(tick.clone())?.get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>();
+            coords[1] = ty;
+            coords[3] = by;
+            self.hull.set_coords(tick,coords.into())?;
+        }
+        let mut tick = ItemTag ( "Chart:Hline".to_owned() ) ;
+        let mut coords = self.hull.coords( tick.clone() )?
+                        .get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>(); 
+        coords[1] = ty;
+        coords[3] = by;
+        self.hull.set_coords(tick,coords.into())?;
+        tick =  ItemTag ( "Chart:Bline".to_owned() );
+        coords = self.hull.coords(tick.clone())?                     
+                        .get_elements()?
+                        .map( |obj| obj.as_f64() )
+                        .collect::<Vec<_>>();
+        coords[1] = ty;
+        coords[3] = by;
+        self.hull.set_coords(tick,coords.into())?;
+        let mut sindexes: Vec<usize> = Vec::new();
+        for k in self.stationarray.keys() {
+            match k {
+                StationArrayIndex::Smile(unused) => (),
+                StationArrayIndex::Y(sindex) => sindexes.push(*sindex),
+            };
+        }
+        let offset = self.topofchart + 20.0;
+        for sindex in sindexes.iter() {
+            let stationIndex = StationArrayIndex::Y(*sindex);
+            let smile = *self.stationarray.get(&StationArrayIndex::Smile(*sindex)).unwrap();
+            let sy = offset + (smile * 20.0);
+            let elt = self.stationarray.get_mut(&stationIndex).unwrap();
+            *elt = sy;
+            let mut thetag = format!("Station:{}",sindex);
+            let mut theItemTag = ItemTag(thetag.as_str().to_owned());
+            let mut coords = self.hull.coords(theItemTag.clone())?
+                .get_elements()?
+                .map( |obj| obj.as_f64() )
+                .collect::<Vec<_>>();
+            coords[1] = sy;
+            self.hull.set_coords(theItemTag,coords.into())?;
+            thetag = format!("Station:Line:{}",sindex);
+            theItemTag = ItemTag(thetag.as_str().to_owned());
+            coords = self.hull.coords(theItemTag.clone())?
+                .get_elements()?
+                .map( |obj| obj.as_f64() )
+                .collect::<Vec<_>>(); 
+            coords[1] = sy;
+            coords[3] = sy;
+            self.hull.set_coords(theItemTag.clone(),coords.into())?;
+            thetag = format!("Station:namebox:{}",sindex);
+            let bbox = self.hull.bbox( (thetag.as_str(), ) )?.unwrap();
+            let mut coords: Vec<f64> = Vec::new();
+            coords.push(bbox.left as f64);
+            coords.push(bbox.top as f64);
+            coords.push(bbox.right as f64);
+            coords.push(bbox.bottom as f64);
+            self.hull.set_coords(theItemTag,coords.into())?;
+        }
         Ok(())
     }
     fn _updateStorageTracks(&mut self) -> TkResult<()> {
@@ -596,7 +893,7 @@ pub struct TimeTable<Inst: std::marker::Copy + 'static> {
     FocusNowhere: TkCanvas<Inst>,
     Main:         MainWindow<Inst>,
     SysConfigFile: String,
-    MainWindow:   TkFrame<Inst>,
+    MainWindow:   ScrollWindow<Inst>,
     ChartDisplay: ChartDisplay<Inst>,
 }
 
@@ -604,16 +901,13 @@ impl<Inst: std::marker::Copy> TimeTable<Inst> {
 }
 
 impl<Inst: std::marker::Copy + 'static> Deref for TimeTable<Inst> {
-    type Target = tk::Widget<Inst>;
+    type Target = MainWindow<Inst>;
 
     fn deref(&self) -> &Self::Target {
         &self.Main
     }
 }
 
-impl<Inst:TkInstance> TkPackSlave  for TimeTable<Inst> {}
-impl<Inst:TkInstance> TkGridSlave  for TimeTable<Inst> {}
-impl<Inst:TkInstance> TkPlaceSlave for TimeTable<Inst> {}
 
 
 
